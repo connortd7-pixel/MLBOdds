@@ -23,6 +23,7 @@ def fetch_and_store():
             "markets": "spreads,totals,h2h",
             "bookmakers": "betmgm,draftkings,fanduel",
             "dateFormat": "iso",
+            "oddsFormat": "american",
             "commenceTimeFrom": commence_from,
             "commenceTimeTo": commence_to
         }
