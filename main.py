@@ -73,14 +73,14 @@ def fetch_and_store():
 
 
 def fetch_and_store_results():
-    eastern = pytz.timezone("America/New_York")
     yesterday = (datetime.now(eastern) - timedelta(days=1)).strftime("%Y-%m-%d")
 
     response = requests.get(
         "https://statsapi.mlb.com/api/v1/schedule",
         params={
             "sportId": 1,
-            "date": yesterday,
+            "startDate": yesterday,
+            "endDate": today,
             "hydrate": "linescore"
         }
     )
