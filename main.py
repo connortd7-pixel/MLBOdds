@@ -72,4 +72,75 @@ def fetch_and_store():
             }).execute()
 
 
+def fetch_and_store_results():
+    eastern = pytz.timezone("America/New_York")
+    yesterday = (datetime.now(eastern) - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    response = requests.get(
+        "https://statsapi.mlb.com/api/v1/schedule",
+        params={
+            "sportId": 1,
+            "date": yesterday,
+            "hydrate": "linescore"
+        }
+    )
+
+    data = response.json()
+
+    for date_entry in data.get("dates", []):
+        for game in date_entry.get("games", []):
+            # Only process completed games
+            if game["status"]["detailedState"] != "Final":
+                continue
+
+            home_team = game["teams"]["home"]["team"]["name"]
+            away_team = game["teams"]["away"]["team"]["name"]
+            home_score = game["teams"]["home"]["score"]
+            away_score = game["teams"]["away"]["score"]
+
+            # Look up the game in our database
+            result = supabase.table("games")\
+                .select("id")\
+                .eq("home_team", home_team)\
+                .eq("away_team", away_team)\
+                .execute()
+
+            if not result.data:
+                print(f"Game not found in DB: {away_team} @ {home_team}")
+                continue
+
+            game_id = result.data[0]["id"]
+
+            # Get the odds we stored to calculate covers
+            odds = supabase.table("odds")\
+                .select("spread_home, total_over")\
+                .eq("game_id", game_id)\
+                .limit(1)\
+                .execute()
+
+            if not odds.data:
+                continue
+
+            spread = odds.data[0]["spread_home"]
+            total = odds.data[0]["total_over"]
+
+            home_covered = (home_score + spread) > away_score if spread else None
+            away_covered = not home_covered if spread else None
+            went_over = (home_score + away_score) > total if total else None
+            went_under = not went_over if total else None
+
+            supabase.table("results").insert({
+                "game_id": game_id,
+                "home_score": home_score,
+                "away_score": away_score,
+                "home_covered": home_covered,
+                "away_covered": away_covered,
+                "went_over": went_over,
+                "went_under": went_under,
+            }).execute()
+
+            print(f"Stored result: {away_team} @ {home_team} — {away_score}-{home_score}")
+
+
 fetch_and_store()
+fetch_and_store_results()
