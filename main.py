@@ -123,6 +123,8 @@ def fetch_and_store_results():
             home_score = game["teams"]["home"]["score"]
             away_score = game["teams"]["away"]["score"]
 
+            supabase.table("games").update({"status": "final"}).eq("id", game_id).execute()
+
             supabase.table("results").upsert({
                 "game_id": game_id,
                 "home_score": home_score,
