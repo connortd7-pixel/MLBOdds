@@ -102,19 +102,28 @@ def fetch_and_store_results():
 
     for date_entry in data.get("dates", []):
         for game in date_entry.get("games", []):
-            if game["status"]["detailedState"] != "Final":
+            detailed_state = game["status"]["detailedState"]
+            if detailed_state not in ("Final", "Postponed"):
                 continue
 
             home_team = game["teams"]["home"]["team"]["name"]
             away_team = game["teams"]["away"]["team"]["name"]
-            home_score = game["teams"]["home"]["score"]
-            away_score = game["teams"]["away"]["score"]
             official_date = game["officialDate"]
 
             game_id = game_lookup.get((home_team, away_team, official_date))
             if not game_id:
                 print(f"Game not found in DB: {away_team} @ {home_team} ({official_date})")
                 continue
+
+            if detailed_state == "Postponed":
+                supabase.table("games").update({"status": "postponed"}).eq("id", game_id).execute()
+                print(f"Marked postponed: {away_team} @ {home_team} ({official_date})")
+                continue
+
+            home_score = game["teams"]["home"]["score"]
+            away_score = game["teams"]["away"]["score"]
+
+            supabase.table("games").update({"status": "final"}).eq("id", game_id).execute()
 
             supabase.table("results").upsert({
                 "game_id": game_id,
