@@ -116,28 +116,10 @@ def fetch_and_store_results():
                 print(f"Game not found in DB: {away_team} @ {home_team} ({official_date})")
                 continue
 
-            odds = supabase.table("odds")\
-                .select("spread_home, total_over")\
-                .eq("game_id", game_id)\
-                .limit(1)\
-                .execute()
-
-            spread = odds.data[0]["spread_home"] if odds.data else None
-            total = odds.data[0]["total_over"] if odds.data else None
-
-            home_covered = (home_score + spread) > away_score if spread is not None else None
-            away_covered = not home_covered if home_covered is not None else None
-            went_over = (home_score + away_score) > total if total is not None else None
-            went_under = not went_over if went_over is not None else None
-
             supabase.table("results").upsert({
                 "game_id": game_id,
                 "home_score": home_score,
                 "away_score": away_score,
-                "home_covered": home_covered,
-                "away_covered": away_covered,
-                "went_over": went_over,
-                "went_under": went_under,
             }, on_conflict="game_id").execute()
 
             print(f"Stored result: {away_team} @ {home_team} — {away_score}-{home_score}")
