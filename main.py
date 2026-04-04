@@ -18,7 +18,7 @@ def fetch_and_store():
     response = requests.get(
         "https://api.the-odds-api.com/v4/sports/baseball_mlb/odds",
         params={
-            "apiKey": "f5880c353c34978903b39b0b83fca149",
+            "apiKey": ODDS_API_KEY,
             "regions": "us",
             "markets": "spreads,totals,h2h",
             "bookmakers": "betmgm,draftkings,fanduel",
