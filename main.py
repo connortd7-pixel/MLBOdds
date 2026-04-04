@@ -119,11 +119,8 @@ def fetch_and_store_results():
                 .limit(1)\
                 .execute()
 
-            if not odds.data:
-                continue
-
-            spread = odds.data[0]["spread_home"]
-            total = odds.data[0]["total_over"]
+            spread = odds.data[0]["spread_home"] if odds.data else None
+            total = odds.data[0]["total_over"] if odds.data else None
 
             home_covered = (home_score + spread) > away_score if spread else None
             away_covered = not home_covered if spread else None
