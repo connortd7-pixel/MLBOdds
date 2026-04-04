@@ -81,7 +81,7 @@ def fetch_and_store_results():
         params={
             "sportId": 1,
             "startDate": yesterday,
-            "endDate": today,
+            "endDate": today.strftime("%Y-%m-%d"),
             "hydrate": "linescore"
         }
     )
