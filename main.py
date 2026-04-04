@@ -75,23 +75,33 @@ def fetch_and_store():
 
 
 def fetch_and_store_results():
-    yesterday = (datetime.now(eastern) - timedelta(days=1)).strftime("%Y-%m-%d")
+    yesterday = datetime.now(eastern) - timedelta(days=1)
+    yesterday_str = yesterday.strftime("%Y-%m-%d")
 
+    # Fetch yesterday's completed games from MLB Stats API
     response = requests.get(
         "https://statsapi.mlb.com/api/v1/schedule",
         params={
             "sportId": 1,
-            "startDate": yesterday,
-            "endDate": today.strftime("%Y-%m-%d"),
+            "startDate": yesterday_str,
+            "endDate": yesterday_str,
             "hydrate": "linescore"
         }
     )
-
     data = response.json()
+
+    # Build lookup from DB: (home_team, away_team, et_date) -> game_id
+    # Convert each game's commence_time (UTC) to ET date so late-night games
+    # (e.g. 8 PM ET = midnight UTC next day) are keyed by their correct ET date
+    all_db_games = supabase.table("games").select("id, home_team, away_team, commence_time").execute()
+    game_lookup = {}
+    for g in all_db_games.data:
+        ct = datetime.fromisoformat(g["commence_time"].replace("Z", "+00:00"))
+        et_date = ct.astimezone(eastern).strftime("%Y-%m-%d")
+        game_lookup[(g["home_team"], g["away_team"], et_date)] = g["id"]
 
     for date_entry in data.get("dates", []):
         for game in date_entry.get("games", []):
-            # Only process completed games
             if game["status"]["detailedState"] != "Final":
                 continue
 
@@ -99,24 +109,13 @@ def fetch_and_store_results():
             away_team = game["teams"]["away"]["team"]["name"]
             home_score = game["teams"]["home"]["score"]
             away_score = game["teams"]["away"]["score"]
+            official_date = game["officialDate"]
 
-            # Look up the game in our database, filtered to the game date to avoid matching future games with same teams
-            game_date = game["officialDate"]  # e.g. "2026-04-03"
-            result = supabase.table("games")\
-                .select("id")\
-                .eq("home_team", home_team)\
-                .eq("away_team", away_team)\
-                .gte("commence_time", f"{game_date}T00:00:00Z")\
-                .lte("commence_time", f"{game_date}T23:59:59Z")\
-                .execute()
-
-            if not result.data:
-                print(f"Game not found in DB: {away_team} @ {home_team}")
+            game_id = game_lookup.get((home_team, away_team, official_date))
+            if not game_id:
+                print(f"Game not found in DB: {away_team} @ {home_team} ({official_date})")
                 continue
 
-            game_id = result.data[0]["id"]
-
-            # Get the odds we stored to calculate covers
             odds = supabase.table("odds")\
                 .select("spread_home, total_over")\
                 .eq("game_id", game_id)\
@@ -126,12 +125,12 @@ def fetch_and_store_results():
             spread = odds.data[0]["spread_home"] if odds.data else None
             total = odds.data[0]["total_over"] if odds.data else None
 
-            home_covered = (home_score + spread) > away_score if spread else None
-            away_covered = not home_covered if spread else None
-            went_over = (home_score + away_score) > total if total else None
-            went_under = not went_over if total else None
+            home_covered = (home_score + spread) > away_score if spread is not None else None
+            away_covered = not home_covered if home_covered is not None else None
+            went_over = (home_score + away_score) > total if total is not None else None
+            went_under = not went_over if went_over is not None else None
 
-            supabase.table("results").insert({
+            supabase.table("results").upsert({
                 "game_id": game_id,
                 "home_score": home_score,
                 "away_score": away_score,
@@ -139,7 +138,7 @@ def fetch_and_store_results():
                 "away_covered": away_covered,
                 "went_over": went_over,
                 "went_under": went_under,
-            }).execute()
+            }, on_conflict="game_id").execute()
 
             print(f"Stored result: {away_team} @ {home_team} — {away_score}-{home_score}")
 
