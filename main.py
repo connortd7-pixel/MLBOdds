@@ -100,11 +100,14 @@ def fetch_and_store_results():
             home_score = game["teams"]["home"]["score"]
             away_score = game["teams"]["away"]["score"]
 
-            # Look up the game in our database
+            # Look up the game in our database, filtered to the game date to avoid matching future games with same teams
+            game_date = game["officialDate"]  # e.g. "2026-04-03"
             result = supabase.table("games")\
                 .select("id")\
                 .eq("home_team", home_team)\
                 .eq("away_team", away_team)\
+                .gte("commence_time", f"{game_date}T00:00:00Z")\
+                .lte("commence_time", f"{game_date}T23:59:59Z")\
                 .execute()
 
             if not result.data:
