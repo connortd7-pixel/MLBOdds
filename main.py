@@ -9,10 +9,11 @@ supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
 eastern = pytz.timezone("US/Eastern")
 today = datetime.now(eastern)
-end_of_day = today + timedelta(days=0.75)
+start_of_day = today.replace(hour=0, minute=0, second=0, microsecond=0)
+end_of_day = today.replace(hour=23, minute=59, second=59, microsecond=0)
 
-commence_from = today.strftime("%Y-%m-%dT%H:%M:%SZ")
-commence_to = end_of_day.strftime("%Y-%m-%dT%H:%M:%SZ")
+commence_from = start_of_day.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+commence_to = end_of_day.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 def fetch_and_store():
     response = requests.get(
