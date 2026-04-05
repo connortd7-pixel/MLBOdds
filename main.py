@@ -90,15 +90,15 @@ def fetch_and_store_results():
     )
     data = response.json()
 
-    # Build lookup from DB: (home_team, away_team, et_date) -> game_id
-    # Convert each game's commence_time (UTC) to ET date so late-night games
-    # (e.g. 8 PM ET = midnight UTC next day) are keyed by their correct ET date
+    # Build lookup from DB: (home_team, away_team, et_date) -> list of (commence_time, game_id)
+    # Stored as a list to support doubleheaders (same matchup, same date, different times)
     all_db_games = supabase.table("games").select("id, home_team, away_team, commence_time").execute()
     game_lookup = {}
     for g in all_db_games.data:
         ct = datetime.fromisoformat(g["commence_time"].replace("Z", "+00:00"))
         et_date = ct.astimezone(eastern).strftime("%Y-%m-%d")
-        game_lookup[(g["home_team"], g["away_team"], et_date)] = g["id"]
+        key = (g["home_team"], g["away_team"], et_date)
+        game_lookup.setdefault(key, []).append((ct, g["id"]))
 
     for date_entry in data.get("dates", []):
         for game in date_entry.get("games", []):
@@ -110,10 +110,14 @@ def fetch_and_store_results():
             away_team = game["teams"]["away"]["team"]["name"]
             official_date = game["officialDate"]
 
-            game_id = game_lookup.get((home_team, away_team, official_date))
-            if not game_id:
+            candidates = game_lookup.get((home_team, away_team, official_date))
+            if not candidates:
                 print(f"Game not found in DB: {away_team} @ {home_team} ({official_date})")
                 continue
+
+            # For doubleheaders, match by closest commence_time to the MLB Stats API game time
+            mlb_game_time = datetime.fromisoformat(game["gameDate"].replace("Z", "+00:00"))
+            game_id = min(candidates, key=lambda x: abs((x[0] - mlb_game_time).total_seconds()))[1]
 
             if detailed_state == "Postponed":
                 supabase.table("games").update({"status": "postponed"}).eq("id", game_id).execute()
