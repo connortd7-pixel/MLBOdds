@@ -108,15 +108,18 @@ def fetch_and_store_results():
 
             home_team = game["teams"]["home"]["team"]["name"]
             away_team = game["teams"]["away"]["team"]["name"]
-            official_date = game["officialDate"]
 
-            candidates = game_lookup.get((home_team, away_team, official_date))
+            # Use gameDate (original scheduled time) converted to ET, not officialDate,
+            # so postponed games match the original entry rather than the makeup game entry
+            mlb_game_time = datetime.fromisoformat(game["gameDate"].replace("Z", "+00:00"))
+            game_et_date = mlb_game_time.astimezone(eastern).strftime("%Y-%m-%d")
+
+            candidates = game_lookup.get((home_team, away_team, game_et_date))
             if not candidates:
                 print(f"Game not found in DB: {away_team} @ {home_team} ({official_date})")
                 continue
 
             # For doubleheaders, match by closest commence_time to the MLB Stats API game time
-            mlb_game_time = datetime.fromisoformat(game["gameDate"].replace("Z", "+00:00"))
             game_id = min(candidates, key=lambda x: abs((x[0] - mlb_game_time).total_seconds()))[1]
 
             if detailed_state == "Postponed":
