@@ -103,7 +103,7 @@ def fetch_and_store_results():
     for date_entry in data.get("dates", []):
         for game in date_entry.get("games", []):
             detailed_state = game["status"]["detailedState"]
-            if detailed_state not in ("Final", "Postponed"):
+            if detailed_state not in ("Final", "Completed Early", "Postponed"):
                 continue
 
             home_team = game["teams"]["home"]["team"]["name"]
