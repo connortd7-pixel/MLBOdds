@@ -120,17 +120,19 @@ def fetch_and_store_results():
             game_id = min(candidates, key=lambda x: abs((x[0] - mlb_game_time).total_seconds()))[1]
 
             if detailed_state == "Postponed":
-                supabase.table("games").update({"status": "postponed"}).eq("id", game_id).execute()
+                supabase.table("results").upsert({
+                    "game_id": game_id,
+                    "status": "postponed",
+                }, on_conflict="game_id").execute()
                 print(f"Marked postponed: {away_team} @ {home_team} ({official_date})")
                 continue
 
             home_score = game["teams"]["home"]["score"]
             away_score = game["teams"]["away"]["score"]
 
-            supabase.table("games").update({"status": "final"}).eq("id", game_id).execute()
-
             supabase.table("results").upsert({
                 "game_id": game_id,
+                "status": "final",
                 "home_score": home_score,
                 "away_score": away_score,
             }, on_conflict="game_id").execute()
