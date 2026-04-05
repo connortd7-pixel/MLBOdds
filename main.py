@@ -127,7 +127,7 @@ def fetch_and_store_results():
                     "game_id": game_id,
                     "status": "postponed",
                 }, on_conflict="game_id").execute()
-                print(f"Marked postponed: {away_team} @ {home_team} ({official_date})")
+                print(f"Marked postponed: {away_team} @ {home_team} ({game_et_date})")
                 continue
 
             home_score = game["teams"]["home"]["score"]
