@@ -120,7 +120,10 @@ def fetch_and_store_results():
                 continue
 
             # For doubleheaders, match by closest commence_time to the MLB Stats API game time
-            game_id = min(candidates, key=lambda x: abs((x[0] - mlb_game_time).total_seconds()))[1]
+            # Remove the matched candidate so the second game can't reuse the same game_id
+            best = min(candidates, key=lambda x: abs((x[0] - mlb_game_time).total_seconds()))
+            candidates.remove(best)
+            game_id = best[1]
 
             if detailed_state == "Postponed":
                 supabase.table("results").upsert({
