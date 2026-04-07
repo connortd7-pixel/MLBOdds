@@ -116,7 +116,7 @@ def fetch_and_store_results():
 
             candidates = game_lookup.get((home_team, away_team, game_et_date))
             if not candidates:
-                print(f"Game not found in DB: {away_team} @ {home_team} ({official_date})")
+                print(f"Game not found in DB: {away_team} @ {home_team} ({game_et_date})")
                 continue
 
             # For doubleheaders, match by closest commence_time to the MLB Stats API game time
@@ -146,5 +146,5 @@ def fetch_and_store_results():
             print(f"Stored result: {away_team} @ {home_team} — {away_score}-{home_score}")
 
 
-fetch_and_store()
 fetch_and_store_results()
+fetch_and_store()
