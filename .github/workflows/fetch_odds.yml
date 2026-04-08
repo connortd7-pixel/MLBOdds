@@ -4,9 +4,7 @@
 name: Fetch Daily Odds
 
 on:
-  schedule:
-    - cron: '0 14 * * *'  # 10 AM ET = 2 PM UTC
-  workflow_dispatch:  # allows manual trigger too
+  workflow_dispatch:  # triggered externally via cron-job.org at 10 AM ET
 
 jobs:
   fetch:
